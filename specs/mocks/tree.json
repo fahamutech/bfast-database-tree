@@ -1,0 +1,41 @@
+{
+  "_id": {},
+  "name": {
+    "xps": {
+      "id1": null
+    },
+    "hp": {
+      "id2": null
+    }
+  },
+  "price": {
+    "1000": {
+      "id1": null,
+      "id2": null
+    }
+  },
+  "metadata": {
+    "a": {
+      "1": {
+        "id1": null,
+        "id2": null
+      }
+    },
+    "b": {
+      "c": {
+        "2": {
+          "id1": null,
+          "id2": null
+        }
+      }
+    },
+    "d": {
+      "e": {
+        "3": {
+          "id1": null,
+          "id2": null
+        }
+      }
+    }
+  }
+}

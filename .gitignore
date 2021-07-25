@@ -1,4 +1,4 @@
-src/tree.json
+#specs/mocks/tree.json
 .idea
 .vscode
 node_modules

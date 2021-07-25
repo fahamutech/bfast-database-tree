@@ -2,15 +2,16 @@
   "name": "bfast-database-tree",
   "version": "1.0.0",
   "description": "",
-  "main": "src/to-tree.js",
+  "main": "src/controllers/tree.controller.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/to-tree.js"
+    "test": "mocha --exit specs/src/*",
+    "start": "node src/controllers/tree.controller.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "chai": "^4.3.4",
     "mocha": "^9.0.2"
   }
 }
