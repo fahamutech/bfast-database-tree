@@ -38,6 +38,9 @@ TreeController.prototype.node = async function (
         nodeHandler = async function ({node, name, tree, path}) {
         }
     }
+    if (!tree.hasOwnProperty(nodeKey)) {
+        tree[nodeKey] = {};
+    }
     if (
         data.hasOwnProperty(nodeKey) &&
         typeof data[nodeKey] === "object" &&
@@ -47,9 +50,6 @@ TreeController.prototype.node = async function (
         data[nodeKey] !== undefined
     ) {
         for (const _key of Object.keys(data[nodeKey])) {
-            if (!tree.hasOwnProperty(nodeKey)) {
-                tree[nodeKey] = {};
-            }
             data[nodeKey]._id = data._id;
             tree[nodeKey] = await this.node(
                 tree[nodeKey],
@@ -66,29 +66,50 @@ TreeController.prototype.node = async function (
         data[nodeKey] !== undefined
     ) {
         for (const value of data[nodeKey]) {
-            if (!tree.hasOwnProperty(nodeKey)) {
-                tree[nodeKey] = {};
+            let _data = {};
+            if (typeof value === 'object' && !Array.isArray(value)) {
+                value._id = data._id;
+                _data = value;
+                for (const _key1 of Object.keys(_data)) {
+                    tree[nodeKey] = await this.node(
+                        tree[nodeKey],
+                        _data,
+                        _key1,
+                        `${nodePath}_${_key1}`,
+                        nodeHandler
+                    );
+                }
+            } else if (Array.isArray(value)) {
+                for (const _value of value) {
+                    _data = {['array']: _value, _id: data._id};
+                    tree[nodeKey] = await this.node(
+                        tree[nodeKey],
+                        _data,
+                        'array',
+                        `${nodePath}_array`,
+                        nodeHandler
+                    );
+                }
+            } else {
+                _data = {[value]: value, _id: data._id, _list: true};
+                tree[nodeKey] = await this.node(
+                    tree[nodeKey],
+                    _data,
+                    value,
+                    `${nodePath}`,
+                    nodeHandler
+                );
             }
-            tree[nodeKey] = await this.node(
-                tree[nodeKey],
-                {[value]: value, _id: data._id, _list: true},
-                value,
-                `${nodePath}_${value}`,
-                nodeHandler
-            );
         }
     } else {
-
         if (!(tree.hasOwnProperty(nodeKey) && tree[nodeKey] !== undefined && tree[nodeKey] !== null)) {
             tree[nodeKey] = {};
         }
-
         if (!tree[nodeKey].hasOwnProperty(data[nodeKey])) {
             if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
                 tree[nodeKey][data[nodeKey]] = {};
             }
         }
-
         if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
             tree[nodeKey][data[nodeKey]][data._id] = null;
             try {
@@ -101,13 +122,12 @@ TreeController.prototype.node = async function (
                 throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
             }
         }
-
         if (data[nodeKey] && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
             tree[nodeKey][data._id] = null;
             try {
                 await nodeHandler({
                     name: nodeKey,
-                    node: tree[nodeKey],
+                    node: {[nodeKey]: tree[nodeKey]},
                     path: nodePath
                 });
             } catch (e) {
@@ -119,10 +139,28 @@ TreeController.prototype.node = async function (
     return tree;
 }
 
-TreeController.prototype.objectToTree = async function (data, domain) {
+/**
+ *
+ * @param data {object} - data to covert to tree
+ * @param domain {string} - data namespace to use
+ * @param nodeHandler {Function} - called when builder a node on each level `async ({name,node,path})=>any`
+ * @returns {Promise<object>} - resolve to tree of nodes for that data
+ */
+TreeController.prototype.objectToTree = async function (
+    data,
+    domain,
+    nodeHandler = async function ({name, path, node}) {
+    }
+) {
     let tree = {};
+    if (typeof data === 'boolean' || !data) {
+        throw errors.DATA_NOT_FOUND;
+    }
+    if (typeof domain === 'boolean' || !domain || domain === '') {
+        throw errors.DOMAIN_NOT_FOUND;
+    }
     for (const nodeKey of Object.keys(data)) {
-        tree = await this.node(tree, data, nodeKey, `${domain}_${nodeKey}`);
+        tree = await this.node(tree, data, nodeKey, `${domain}_${nodeKey}`, nodeHandler);
     }
     return tree;
 }

@@ -10,9 +10,11 @@ describe('Tree Controller', function () {
         name: 'xps',
         price: 10,
         refs: ['a', 'b', 'c'],
+        n: [1, 2],
         r: {
             ref: ['a', 'b']
         },
+        ao: ['z', {a: 10}, {b: 10}, ['c', 'a', ['f'], {t: 1, y: ['iyo']}]],
         t: {
             a: 1,
             b: 2
@@ -151,7 +153,7 @@ describe('Tree Controller', function () {
             should().exist(node.meta);
             should().not.exist(node.meta._id);
         });
-        it('should convert a array field from data to object in node ', async function () {
+        it('should convert a array of string field from data to object in node ', async function () {
             const node = await treeController.node({}, data, 'refs', `${domain}_refs`);
             assert(node !== undefined);
             assert(node !== null);
@@ -164,6 +166,59 @@ describe('Tree Controller', function () {
                 a: {id1: null},
                 b: {id1: null},
                 c: {id1: null}
+            });
+        });
+        it('should convert a array of number field from data to object in node ', async function () {
+            const node = await treeController.node({}, data, 'n');
+            assert(node !== undefined);
+            assert(node !== null);
+            assert(typeof node === "object");
+            should().exist(node.n);
+            should().exist(node.n['1']);
+            should().exist(node.n['2']);
+            expect(node.n).to.eql({
+                '1': {id1: null},
+                '2': {id1: null}
+            });
+        });
+        it('should convert a array of object field from data to object in node ', async function () {
+            let calledTime = 0;
+            let isCalled = [];
+            let paths = []
+            const nodehandler = ({name, path, node}) => {
+                console.log(name);
+                console.log(path);
+                console.log(node);
+                paths.push(path);
+                calledTime += 1;
+                isCalled.push(true);
+            }
+            const node = await treeController.node({}, data, 'ao', null, nodehandler);
+            // ['z', {a: 10}, {b: 10}, ['c', 'a', ['f'],{t:1,y:['iyo']}]]
+            assert(node !== undefined);
+            assert(node !== null);
+            assert(typeof node === "object");
+            should().exist(node.ao);
+            expect(isCalled.length).equal(6);
+            expect(paths.length).equal(6);
+            expect(calledTime).equal(6);
+            expect(isCalled.reduce((a, b) => a && b, true)).equal(true);
+            expect(paths).eql(['ao','ao_a','ao_b','ao_array','ao_array_t','ao_array_y'])
+            expect(node.ao).to.eql({
+                z: {id1: null},
+                a: {
+                    10: {id1: null},
+                },
+                b: {
+                    10: {id1: null}
+                },
+                array: {
+                    c: {id1: null},
+                    a: {id1: null},
+                    f: {id1: null},
+                    t: {'1': {id1: null}},
+                    y: {'iyo': {id1: null}}
+                }
             });
         });
         it('should convert multi document data with array field in embedded object to node ', async function () {
@@ -320,14 +375,55 @@ describe('Tree Controller', function () {
     });
 
     describe('objectToTree', function () {
+        const domain = 'test';
+        const data = {
+            _id: 'id2',
+            name: 'hp',
+            price: 10,
+            tags: ['a', 'b'],
+            offers: [{jan: 10}, {feb: 20}],
+            meta: {
+                a: {
+                    b: 2
+                },
+                b: 3
+            }
+        };
         it('should convert object to tree', async function () {
-            const tree = await treeController.objectToTree(data);
+            const tree = await treeController.objectToTree(data, domain);
             assert(tree !== undefined);
             assert(tree !== null);
             assert(typeof tree === "object");
-            expect(tree.name.xps).eql({'id1': null});
-            expect(tree.price['10']).eql({'id1': null});
-            expect(tree.meta.a.b['2']).eql({'id1': null});
+            expect(tree).eql({
+                name: {
+                    hp: {id2: null}
+                },
+                price: {
+                    '10': {id2: null}
+                },
+                tags: {
+                    a: {id2: null},
+                    b: {id2: null}
+                },
+                offers: {
+                    jan: {
+                        '10': {id2: null}
+                    },
+                    feb: {
+                        '20': {id2: null}
+                    }
+                },
+                meta: {
+                    a: {
+                        b: {
+                            '2': {id2: null}
+                        }
+                    },
+                    b: {
+                        '3': {id2: null}
+                    }
+                }
+            });
         });
         it('should not return _id field in tree', async function () {
             const tree = await treeController.objectToTree(data, domain);
@@ -341,7 +437,25 @@ describe('Tree Controller', function () {
     });
 
     describe('objectsToTree', function () {
+    });
 
+    describe('comp', function () {
+        it('should compress', async function () {
+            const data = 'cee00b08a818db87e17e703273818e5194f83280e1ef3eae9214ff14675d9e6d'.split('');
+            console.log(data.length);
+            const d = data.reduce((previousValue, currentValue, i) => {
+                if (previousValue.hasOwnProperty(currentValue)){
+                    const _set = new Set(previousValue[currentValue]);
+                    _set.add(i);
+                    previousValue[currentValue] = Array.from(_set);
+                }else {
+                    previousValue[currentValue] = [i];
+                }
+                return previousValue;
+            }, {});
+            console.log(d);
+            console.log(JSON.stringify(d).length);
+        });
     });
 
 });
