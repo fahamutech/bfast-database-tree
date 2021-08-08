@@ -49,91 +49,16 @@ TreeController.prototype.node = async function (
         data[nodeKey] !== null &&
         data[nodeKey] !== undefined
     ) {
-        for (const _key of Object.keys(data[nodeKey])) {
-            data[nodeKey]._id = data._id;
-            tree[nodeKey] = await this.node(
-                tree[nodeKey],
-                data[nodeKey],
-                _key,
-                `${nodePath}_${_key}`,
-                nodeHandler
-            );
-        }
+        tree = await this.handleMap(tree, data, nodeKey, nodePath, nodeHandler);
     } else if (
         data.hasOwnProperty(nodeKey) &&
         Array.isArray(data[nodeKey]) &&
         data[nodeKey] !== null &&
         data[nodeKey] !== undefined
     ) {
-        for (const value of data[nodeKey]) {
-            let _data = {};
-            if (typeof value === 'object' && !Array.isArray(value)) {
-                value._id = data._id;
-                _data = value;
-                for (const _key1 of Object.keys(_data)) {
-                    tree[nodeKey] = await this.node(
-                        tree[nodeKey],
-                        _data,
-                        _key1,
-                        `${nodePath}_${_key1}`,
-                        nodeHandler
-                    );
-                }
-            } else if (Array.isArray(value)) {
-                for (const _value of value) {
-                    _data = {['array']: _value, _id: data._id};
-                    tree[nodeKey] = await this.node(
-                        tree[nodeKey],
-                        _data,
-                        'array',
-                        `${nodePath}_array`,
-                        nodeHandler
-                    );
-                }
-            } else {
-                _data = {[value]: value, _id: data._id, _list: true};
-                tree[nodeKey] = await this.node(
-                    tree[nodeKey],
-                    _data,
-                    value,
-                    `${nodePath}`,
-                    nodeHandler
-                );
-            }
-        }
+        tree = await this.handleArray(tree, data, nodeKey, nodePath, nodeHandler);
     } else {
-        if (!(tree.hasOwnProperty(nodeKey) && tree[nodeKey] !== undefined && tree[nodeKey] !== null)) {
-            tree[nodeKey] = {};
-        }
-        if (!tree[nodeKey].hasOwnProperty(data[nodeKey])) {
-            if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
-                tree[nodeKey][data[nodeKey]] = {};
-            }
-        }
-        if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
-            tree[nodeKey][data[nodeKey]][data._id] = null;
-            try {
-                await nodeHandler({
-                    name: nodeKey,
-                    node: tree[nodeKey],
-                    path: nodePath
-                });
-            } catch (e) {
-                throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
-            }
-        }
-        if (data[nodeKey] && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
-            tree[nodeKey][data._id] = null;
-            try {
-                await nodeHandler({
-                    name: nodeKey,
-                    node: {[nodeKey]: tree[nodeKey]},
-                    path: nodePath
-                });
-            } catch (e) {
-                throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
-            }
-        }
+        tree = await this.processANode(tree, data, nodeKey, nodePath, nodeHandler);
     }
     delete tree._id;
     return tree;
@@ -165,9 +90,125 @@ TreeController.prototype.objectToTree = async function (
     return tree;
 }
 
+/**
+ *
+ * @param tree {object}
+ * @param data {object}
+ * @param nodeKey {string}
+ * @param nodePath {string}
+ * @param nodeHandler {Function}
+ * @returns {Promise<object>}
+ */
+TreeController.prototype.handleMap = async function (
+    tree,
+    data,
+    nodeKey,
+    nodePath,
+    nodeHandler
+) {
+    for (const _key of Object.keys(data[nodeKey])) {
+        data[nodeKey]._id = data._id;
+        tree[nodeKey] = await this.node(
+            tree[nodeKey],
+            data[nodeKey],
+            _key,
+            `${nodePath}_${_key}`,
+            nodeHandler
+        );
+    }
+    return tree;
+}
+
+/**
+ *
+ * @param tree {object}
+ * @param data {object}
+ * @param nodeKey {string}
+ * @param nodePath {string}
+ * @param nodeHandler {Function}
+ * @returns {Promise<object>}
+ */
+TreeController.prototype.handleArray = async function (
+    tree,
+    data,
+    nodeKey,
+    nodePath,
+    nodeHandler
+) {
+    for (const arrayItem of data[nodeKey]) {
+        if (typeof arrayItem === 'object' && !Array.isArray(arrayItem)) {
+            tree = await this.handleMap(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, nodeHandler);
+        } else if (Array.isArray(arrayItem)) {
+            tree = await this.handleArray(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, nodeHandler);
+        } else {
+            const _data = {[arrayItem]: arrayItem, _id: data._id, _list: true};
+            tree[nodeKey] = await this.node(
+                tree[nodeKey],
+                _data,
+                arrayItem,
+                `${nodePath}`,
+                nodeHandler
+            );
+        }
+    }
+    return tree;
+}
+
+/**
+ *
+ * @param tree {object}
+ * @param data {object}
+ * @param nodeKey {string}
+ * @param nodePath {string}
+ * @param nodeHandler {Function}
+ * @returns {Promise<object>}
+ */
+TreeController.prototype.processANode = async function (
+    tree,
+    data,
+    nodeKey,
+    nodePath,
+    nodeHandler
+) {
+    if (!(tree.hasOwnProperty(nodeKey) && tree[nodeKey] !== undefined && tree[nodeKey] !== null)) {
+        tree[nodeKey] = {};
+    }
+    if (!tree[nodeKey].hasOwnProperty(data[nodeKey])) {
+        if (
+            data[nodeKey]
+            && data[nodeKey] !== data._id
+            && !data.hasOwnProperty('_list')
+        ) {
+            tree[nodeKey][data[nodeKey]] = {};
+        }
+    }
+    if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
+        tree[nodeKey][data[nodeKey]][data._id] = null;
+        try {
+            await nodeHandler({
+                name: nodeKey,
+                node: tree[nodeKey],
+                path: nodePath
+            });
+        } catch (e) {
+            throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
+        }
+    }
+    if (data[nodeKey] && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
+        tree[nodeKey][data._id] = null;
+        try {
+            await nodeHandler({
+                name: nodeKey,
+                node: {[nodeKey]: tree[nodeKey]},
+                path: nodePath
+            });
+        } catch (e) {
+            throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
+        }
+    }
+    return tree;
+}
+
 module.exports = {
     TreeController: TreeController
 }
-
-// writeFileSync('./tree.json', JSON.stringify(tf));
-
