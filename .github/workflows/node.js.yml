@@ -26,10 +26,13 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: |
+      run: |
         export NPM_TOKEN=${{ secrets.NPM_TOKEN }}
         echo $NPM_TOKEN
         npm ci
         npm run build --if-present
         npm test
         npm publish
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
