@@ -9,7 +9,10 @@ function TreeController() {
  * @param data {object} - data target to extract nodes
  * @param nodeKey {string} - node key from main data
  * @param nodePath {string | null} - full path of that node
- * @param nodeHandler {Function} - function to handle a found node, async ({node, name, path})=>any
+ * @param opts - options {
+ *     nodeHandler: ({name, path, node})=>{}, // called each time node found;
+       nodeIdHandler: ()=>{return null;} // called when want to process secondary data id;
+ * }
  * @returns {Promise<object>} - tree after append a node
  */
 TreeController.prototype.node = async function (
@@ -17,7 +20,13 @@ TreeController.prototype.node = async function (
     data,
     nodeKey,
     nodePath = null,
-    nodeHandler = null
+    opts = {
+        nodeHandler: async ({name, path, node}) => {
+        },
+        nodeIdHandler: async () => {
+            return null;
+        }
+    }
 ) {
     if (typeof tree === 'boolean' || !tree) {
         throw errors.TREE_NOT_FOUND;
@@ -34,8 +43,14 @@ TreeController.prototype.node = async function (
     if (typeof nodePath === 'boolean' || !nodePath) {
         nodePath = nodeKey;
     }
-    if (typeof nodeHandler === 'boolean' || !nodeHandler) {
-        nodeHandler = async function ({node, name, tree, path}) {
+    // if (!tree._id || typeof tree._id ==="boolean"){
+    //     tree._id = {};
+    // }
+    if (!opts || typeof opts === "boolean") {
+        opts = {};
+    }
+    if (typeof opts.nodeHandler === 'boolean' || !opts.nodeHandler) {
+        opts.nodeHandler = async function ({node, name, tree, path}) {
         }
     }
     if (!tree.hasOwnProperty(nodeKey)) {
@@ -49,16 +64,16 @@ TreeController.prototype.node = async function (
         data[nodeKey] !== null &&
         data[nodeKey] !== undefined
     ) {
-        tree = await this.handleMap(tree, data, nodeKey, nodePath, nodeHandler);
+        tree = await handleMap(tree, data, nodeKey, nodePath, opts);
     } else if (
         data.hasOwnProperty(nodeKey) &&
         Array.isArray(data[nodeKey]) &&
         data[nodeKey] !== null &&
         data[nodeKey] !== undefined
     ) {
-        tree = await this.handleArray(tree, data, nodeKey, nodePath, nodeHandler);
+        tree = await handleArray(tree, data, nodeKey, nodePath, opts);
     } else {
-        tree = await this.processANode(tree, data, nodeKey, nodePath, nodeHandler);
+        tree = await processANode(tree, data, nodeKey, nodePath, opts);
     }
     delete tree._id;
     return tree;
@@ -68,37 +83,52 @@ TreeController.prototype.node = async function (
  *
  * @param data {object | Array<object>} - data to covert to tree
  * @param domain {string} - data namespace to use
- * @param nodeHandler {Function} - called when builder a node on each level `async ({name,node,path})=>any`
+ * @param opts - options {
+ *     nodeHandler: ({name, path, node})=>{}, // called each time node found;
+       nodeIdHandler: ()=>{return null;} // called when want to process secondary data id;
+ * }
  * @returns {Promise<object>} - resolve to tree of nodes for that data
  */
 TreeController.prototype.objectToTree = async function (
     data,
     domain,
-    nodeHandler = async function ({name, path, node}) {
+    opts = {
+        nodeHandler: async ({name, path, node}) => {
+        },
+        nodeIdHandler: async () => {
+            return null;
+        }
     }
 ) {
     let tree = {};
+    const idNode = {};
     if (typeof domain === 'boolean' || !domain || domain === '') {
         throw errors.DOMAIN_NOT_FOUND;
     }
 
-    if (Array.isArray(data)) {
-        for (const d of data) {
-            if (typeof d === 'boolean' || !d) {
-                throw errors.DATA_NOT_FOUND;
-            }
-            for (const nodeKey of Object.keys(d)) {
-                tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, nodeHandler);
-            }
-        }
-    } else {
-        if (typeof data === 'boolean' || !data) {
+    const processTree = async (d)=>{
+        if (typeof d === 'boolean' || !d) {
             throw errors.DATA_NOT_FOUND;
         }
-        for (const nodeKey of Object.keys(data)) {
-            tree = await this.node(tree, data, nodeKey, `${domain}/${nodeKey}`, nodeHandler);
+        for (const nodeKey of Object.keys(d)) {
+            tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, opts);
         }
+        idNode[d._id] = await opts.nodeIdHandler();
+        await opts.nodeHandler({
+            name: '_id',
+            node: idNode,
+            path: `${domain}/_id`
+        });
     }
+
+    if (Array.isArray(data)) {
+        for (const _data of data) {
+            await processTree(_data);
+        }
+    } else {
+        await processTree(data);
+    }
+    tree._id = idNode;
     return tree;
 }
 
@@ -108,24 +138,27 @@ TreeController.prototype.objectToTree = async function (
  * @param data {object}
  * @param nodeKey {string}
  * @param nodePath {string}
- * @param nodeHandler {Function}
+ * @param opts - options {
+ *     nodeHandler: ({name, path, node})=>{}, // called each time node found;
+       nodeIdHandler: ()=>{return null;} // called when want to process secondary data id;
+ * }
  * @returns {Promise<object>}
  */
-TreeController.prototype.handleMap = async function (
+async function handleMap(
     tree,
     data,
     nodeKey,
     nodePath,
-    nodeHandler
+    opts
 ) {
     for (const _key of Object.keys(data[nodeKey])) {
         data[nodeKey]._id = data._id;
-        tree[nodeKey] = await this.node(
+        tree[nodeKey] = await TreeController.prototype.node(
             tree[nodeKey],
             data[nodeKey],
             _key,
             `${nodePath}/${_key}`,
-            nodeHandler
+            opts
         );
     }
     return tree;
@@ -137,29 +170,32 @@ TreeController.prototype.handleMap = async function (
  * @param data {object}
  * @param nodeKey {string}
  * @param nodePath {string}
- * @param nodeHandler {Function}
+ * @param opts - options {
+ *     nodeHandler: ({name, path, node})=>{}, // called each time node found;
+       nodeIdHandler: ()=>{return null;} // called when want to process secondary data id;
+ * }
  * @returns {Promise<object>}
  */
-TreeController.prototype.handleArray = async function (
+async function handleArray(
     tree,
     data,
     nodeKey,
     nodePath,
-    nodeHandler
+    opts
 ) {
     for (const arrayItem of data[nodeKey]) {
         if (typeof arrayItem === 'object' && !Array.isArray(arrayItem)) {
-            tree = await this.handleMap(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, nodeHandler);
+            tree = await handleMap(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, opts);
         } else if (Array.isArray(arrayItem)) {
-            tree = await this.handleArray(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, nodeHandler);
+            tree = await handleArray(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, opts);
         } else {
             const _data = {[arrayItem]: arrayItem, _id: data._id, _list: true};
-            tree[nodeKey] = await this.node(
+            tree[nodeKey] = await TreeController.prototype.node(
                 tree[nodeKey],
                 _data,
                 arrayItem,
                 `${nodePath}`,
-                nodeHandler
+                opts
             );
         }
     }
@@ -172,16 +208,27 @@ TreeController.prototype.handleArray = async function (
  * @param data {object}
  * @param nodeKey {string}
  * @param nodePath {string}
- * @param nodeHandler {Function}
+ * @param opts - options {
+ *     nodeHandler: ({name, path, node})=>{}, // called each time node found;
+       nodeIdHandler: ()=>{return null;} // called when want to process secondary data id;
+ * }
  * @returns {Promise<object>}
  */
-TreeController.prototype.processANode = async function (
+async function processANode(
     tree,
     data,
     nodeKey,
     nodePath,
-    nodeHandler
+    opts
 ) {
+    if (!opts || typeof opts === "boolean") {
+        opts = {};
+    }
+    if (!opts.nodeIdHandler || typeof opts.nodeHandler !== 'function') {
+        opts.nodeIdHandler = () => {
+            return null;
+        };
+    }
     if (!(tree.hasOwnProperty(nodeKey) && tree[nodeKey] !== undefined && tree[nodeKey] !== null)) {
         tree[nodeKey] = {};
     }
@@ -195,9 +242,10 @@ TreeController.prototype.processANode = async function (
         }
     }
     if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
-        tree[nodeKey][data[nodeKey]][data._id] = null;
+        tree[nodeKey][data[nodeKey]][data._id] = await opts.nodeIdHandler();
+        // tree._id[data._id] = await opts.nodeIdHandler();
         try {
-            await nodeHandler({
+            await opts.nodeHandler({
                 name: nodeKey,
                 node: tree[nodeKey],
                 path: nodePath
@@ -207,9 +255,10 @@ TreeController.prototype.processANode = async function (
         }
     }
     if (data[nodeKey] && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
-        tree[nodeKey][data._id] = null;
+        tree[nodeKey][data._id] = await opts.nodeIdHandler();
+        // tree._id[data._id] = await opts.nodeIdHandler();
         try {
-            await nodeHandler({
+            await opts.nodeHandler({
                 name: nodeKey,
                 node: {[nodeKey]: tree[nodeKey]},
                 path: nodePath
@@ -222,5 +271,5 @@ TreeController.prototype.processANode = async function (
 }
 
 module.exports = {
-    TreeController: TreeController
+    TreeController,
 }
