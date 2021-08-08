@@ -2,7 +2,7 @@ const {assert, should, expect} = require("chai");
 const {TreeController} = require('../../src/controllers/tree.controller');
 const {errors} = require('../../src/utils/errors.util');
 
-describe('Tree Controller', function () {
+describe('TreeController', function () {
     const treeController = new TreeController();
     const domain = 'test';
     const data = {
@@ -14,7 +14,7 @@ describe('Tree Controller', function () {
         r: {
             ref: ['a', 'b']
         },
-        ao: ['z', {a: 10}, {b: 10}, ['c', 'a', ['f'], {t: 1, y: ['iyo']}]],
+        ao: ['z', {a: 10}, ['c', ['f'], {y: ['iyo', {t: {'age': 20}}]}]],
         t: {
             a: 1,
             b: 2
@@ -153,7 +153,7 @@ describe('Tree Controller', function () {
             should().exist(node.meta);
             should().not.exist(node.meta._id);
         });
-        it('should convert a array of string field from data to object in node ', async function () {
+        it('should convert an array of string field from data to object in node ', async function () {
             const node = await treeController.node({}, data, 'refs', `${domain}_refs`);
             assert(node !== undefined);
             assert(node !== null);
@@ -168,7 +168,7 @@ describe('Tree Controller', function () {
                 c: {id1: null}
             });
         });
-        it('should convert a array of number field from data to object in node ', async function () {
+        it('should convert an array of number field from data to object in node ', async function () {
             const node = await treeController.node({}, data, 'n');
             assert(node !== undefined);
             assert(node !== null);
@@ -181,20 +181,17 @@ describe('Tree Controller', function () {
                 '2': {id1: null}
             });
         });
-        it('should convert a array of object field from data to object in node ', async function () {
+        it('should convert an array of object field from data to object in node ', async function () {
             let calledTime = 0;
             let isCalled = [];
             let paths = []
             const nodehandler = ({name, path, node}) => {
-                console.log(name);
-                console.log(path);
-                console.log(node);
                 paths.push(path);
                 calledTime += 1;
                 isCalled.push(true);
             }
             const node = await treeController.node({}, data, 'ao', null, nodehandler);
-            // ['z', {a: 10}, {b: 10}, ['c', 'a', ['f'],{t:1,y:['iyo']}]]
+            // ['z', {a: 10}, ['c', ['f'], {y: ['iyo', {t: {'age': 20}}]}]],,
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -203,21 +200,21 @@ describe('Tree Controller', function () {
             expect(paths.length).equal(6);
             expect(calledTime).equal(6);
             expect(isCalled.reduce((a, b) => a && b, true)).equal(true);
-            expect(paths).eql(['ao','ao_a','ao_b','ao_array','ao_array_t','ao_array_y'])
+            expect(paths).eql(['ao', 'ao_a', 'ao', 'ao', 'ao_y','ao_y_t_age'])
             expect(node.ao).to.eql({
                 z: {id1: null},
                 a: {
                     10: {id1: null},
                 },
-                b: {
-                    10: {id1: null}
-                },
-                array: {
-                    c: {id1: null},
-                    a: {id1: null},
-                    f: {id1: null},
-                    t: {'1': {id1: null}},
-                    y: {'iyo': {id1: null}}
+                c: {id1: null},
+                f: {id1: null},
+                y: {
+                    'iyo': {id1: null},
+                    t: {
+                        age: {
+                            20: {id1: null}
+                        }
+                    }
                 }
             });
         });
@@ -390,7 +387,11 @@ describe('Tree Controller', function () {
             }
         };
         it('should convert object to tree', async function () {
-            const tree = await treeController.objectToTree(data, domain);
+            const tree = await treeController.objectToTree(data, domain, async function ({name, path, node}){
+                // console.log(name,' node name  *********');
+                // console.log(path, '  table *****');
+                // console.log(node,'  data **********\n');
+            });
             assert(tree !== undefined);
             assert(tree !== null);
             assert(typeof tree === "object");
@@ -437,25 +438,6 @@ describe('Tree Controller', function () {
     });
 
     describe('objectsToTree', function () {
-    });
-
-    describe('comp', function () {
-        it('should compress', async function () {
-            const data = 'cee00b08a818db87e17e703273818e5194f83280e1ef3eae9214ff14675d9e6d'.split('');
-            console.log(data.length);
-            const d = data.reduce((previousValue, currentValue, i) => {
-                if (previousValue.hasOwnProperty(currentValue)){
-                    const _set = new Set(previousValue[currentValue]);
-                    _set.add(i);
-                    previousValue[currentValue] = Array.from(_set);
-                }else {
-                    previousValue[currentValue] = [i];
-                }
-                return previousValue;
-            }, {});
-            console.log(d);
-            console.log(JSON.stringify(d).length);
-        });
     });
 
 });
