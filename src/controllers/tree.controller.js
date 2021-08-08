@@ -66,7 +66,7 @@ TreeController.prototype.node = async function (
 
 /**
  *
- * @param data {object} - data to covert to tree
+ * @param data {object | Array<object>} - data to covert to tree
  * @param domain {string} - data namespace to use
  * @param nodeHandler {Function} - called when builder a node on each level `async ({name,node,path})=>any`
  * @returns {Promise<object>} - resolve to tree of nodes for that data
@@ -78,14 +78,26 @@ TreeController.prototype.objectToTree = async function (
     }
 ) {
     let tree = {};
-    if (typeof data === 'boolean' || !data) {
-        throw errors.DATA_NOT_FOUND;
-    }
     if (typeof domain === 'boolean' || !domain || domain === '') {
         throw errors.DOMAIN_NOT_FOUND;
     }
-    for (const nodeKey of Object.keys(data)) {
-        tree = await this.node(tree, data, nodeKey, `${domain}_${nodeKey}`, nodeHandler);
+
+    if (Array.isArray(data)) {
+        for (const d of data) {
+            if (typeof d === 'boolean' || !d) {
+                throw errors.DATA_NOT_FOUND;
+            }
+            for (const nodeKey of Object.keys(d)) {
+                tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, nodeHandler);
+            }
+        }
+    } else {
+        if (typeof data === 'boolean' || !data) {
+            throw errors.DATA_NOT_FOUND;
+        }
+        for (const nodeKey of Object.keys(data)) {
+            tree = await this.node(tree, data, nodeKey, `${domain}/${nodeKey}`, nodeHandler);
+        }
     }
     return tree;
 }
@@ -112,7 +124,7 @@ TreeController.prototype.handleMap = async function (
             tree[nodeKey],
             data[nodeKey],
             _key,
-            `${nodePath}_${_key}`,
+            `${nodePath}/${_key}`,
             nodeHandler
         );
     }

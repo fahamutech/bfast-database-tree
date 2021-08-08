@@ -1,6 +1,6 @@
 {
   "name": "bfast-database-tree",
-  "version": "1.0.0",
+  "version": "1.0.0-aplha.0",
   "description": "",
   "main": "src/controllers/tree.controller.js",
   "scripts": {

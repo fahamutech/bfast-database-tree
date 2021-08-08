@@ -1,6 +1,8 @@
 const {assert, should, expect} = require("chai");
 const {TreeController} = require('../../src/controllers/tree.controller');
 const {errors} = require('../../src/utils/errors.util');
+const stocks = require('../mocks/sales.json');
+const {writeFileSync} = require('fs');
 
 describe('TreeController', function () {
     const treeController = new TreeController();
@@ -29,7 +31,7 @@ describe('TreeController', function () {
 
     describe('node', function () {
         it('should create a node from object for one level node', async function () {
-            const node = await treeController.node({}, data, 'name', `${domain}_name`);
+            const node = await treeController.node({}, data, 'name', `${domain}/name`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -37,7 +39,7 @@ describe('TreeController', function () {
             expect(node.name.xps).eql({id1: null});
         });
         it('should create a node from object with multiple level node', async function () {
-            const node = await treeController.node({}, data, 'meta', `${domain}_meta`);
+            const node = await treeController.node({}, data, 'meta', `${domain}/meta`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -68,7 +70,7 @@ describe('TreeController', function () {
         });
         it('should not create a node if data has no _id field', async function () {
             try {
-                const node = await treeController.node({}, {name: 'dell'}, 'name', `${domain}_name`);
+                const node = await treeController.node({}, {name: 'dell'}, 'name', `${domain}/name`);
                 should().not.exist(node);
             } catch (e) {
                 should().exist(e);
@@ -89,7 +91,7 @@ describe('TreeController', function () {
             }
         });
         it('should create a node if tree provided it has a node with null value', async function () {
-            const node = await treeController.node({name: null}, data, 'name', `${domain}_name`);
+            const node = await treeController.node({name: null}, data, 'name', `${domain}/name`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -97,7 +99,7 @@ describe('TreeController', function () {
             expect(node.name.xps).eql({id1: null});
         });
         it('should create a node if tree provided it has a node with undefined value', async function () {
-            const node = await treeController.node({name: undefined}, data, 'name', `${domain}_name`);
+            const node = await treeController.node({name: undefined}, data, 'name', `${domain}/name`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -114,7 +116,7 @@ describe('TreeController', function () {
         });
         it('should throw error if initial tree is null', async function () {
             try {
-                const node = await treeController.node(null, data, 'name', `${domain}_name`);
+                const node = await treeController.node(null, data, 'name', `${domain}/name`);
                 should().not.exist(node);
             } catch (e) {
                 should().exist(e);
@@ -135,7 +137,7 @@ describe('TreeController', function () {
             }
         });
         it('should not return _id field in a node for single level', async function () {
-            const node = await treeController.node({}, data, 'name', `${domain}_name`);
+            const node = await treeController.node({}, data, 'name', `${domain}/name`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -146,7 +148,7 @@ describe('TreeController', function () {
             });
         });
         it('should not return _id field in a node for multi level', async function () {
-            const node = await treeController.node({}, data, 'meta', `${domain}_meta`);
+            const node = await treeController.node({}, data, 'meta', `${domain}/meta`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -154,7 +156,7 @@ describe('TreeController', function () {
             should().not.exist(node.meta._id);
         });
         it('should convert an array of string field from data to object in node ', async function () {
-            const node = await treeController.node({}, data, 'refs', `${domain}_refs`);
+            const node = await treeController.node({}, data, 'refs', `${domain}/refs`);
             assert(node !== undefined);
             assert(node !== null);
             assert(typeof node === "object");
@@ -200,7 +202,7 @@ describe('TreeController', function () {
             expect(paths.length).equal(6);
             expect(calledTime).equal(6);
             expect(isCalled.reduce((a, b) => a && b, true)).equal(true);
-            expect(paths).eql(['ao', 'ao_a', 'ao', 'ao', 'ao_y','ao_y_t_age'])
+            expect(paths).eql(['ao', 'ao/a', 'ao', 'ao', 'ao/y', 'ao/y/t/age'])
             expect(node.ao).to.eql({
                 z: {id1: null},
                 a: {
@@ -274,7 +276,7 @@ describe('TreeController', function () {
                 should().exist(path);
                 expect(name).oneOf(['a', 'b']);
                 expect([{'1': {id1: null}}, {'2': {id1: null}}]).to.deep.include(node);
-                expect(path).oneOf(['t_a', 't_b']);
+                expect(path).oneOf(['t/a', 't/b']);
                 functionCalled.push(true);
                 calledTimes += 1;
             }
@@ -305,7 +307,7 @@ describe('TreeController', function () {
             const nodeHandler = async ({name, node, path}) => {
                 expect(name).oneOf(['a', 'b']);
                 expect([{'1': {id1: null}}, {'2': {id1: null}}]).to.deep.include(node);
-                expect(path).oneOf(['test_t_a', 'test_t_b']);
+                expect(path).oneOf(['test/t/a', 'test/t/b']);
                 functionCalled.push(true);
                 calledTimes += 1;
             }
@@ -313,7 +315,7 @@ describe('TreeController', function () {
                 {},
                 data,
                 't',
-                'test_t',
+                'test/t',
                 nodeHandler
             );
             should().exist(node);
@@ -335,7 +337,7 @@ describe('TreeController', function () {
             let fc = false;
             const hf = ({name, path, node}) => {
                 expect(name).equal('name');
-                expect(path).equal('test_name');
+                expect(path).equal('test/name');
                 expect(node).eql({
                     xps: {id1: null}
                 });
@@ -348,7 +350,7 @@ describe('TreeController', function () {
                     {},
                     data,
                     'name',
-                    'test_name',
+                    'test/name',
                     hf
                 );
                 should().exist(node);
@@ -386,8 +388,28 @@ describe('TreeController', function () {
                 b: 3
             }
         };
+        const datas = [
+            {
+                _id: 'id2',
+                name: 'hp',
+                price: 10,
+                tags: ['a', 'b'],
+                offers: [{jan: 10}, {feb: 20}],
+                meta: {
+                    a: {
+                        b: 2
+                    },
+                    b: 3
+                }
+            },
+            {
+                _id: 'id1',
+                name: 'xps',
+                price: 10,
+            }
+        ]
         it('should convert object to tree', async function () {
-            const tree = await treeController.objectToTree(data, domain, async function ({name, path, node}){
+            const tree = await treeController.objectToTree(data, domain, async function ({name, path, node}) {
                 // console.log(name,' node name  *********');
                 // console.log(path, '  table *****');
                 // console.log(node,'  data **********\n');
@@ -435,9 +457,56 @@ describe('TreeController', function () {
             should().not.exist(tree.meta._id);
             should().not.exist(tree._id);
         });
-    });
-
-    describe('objectsToTree', function () {
+        it('should convert objects to tree', async function () {
+            const tree = await treeController.objectToTree(datas, domain, async function ({name, path, node}) {
+                // console.log(name,' node name  *********');
+                // console.log(path, '  table *****');
+                // console.log(node,'  data **********\n');
+            });
+            assert(tree !== undefined);
+            assert(tree !== null);
+            assert(typeof tree === "object");
+            expect(tree).eql({
+                name: {
+                    hp: {id2: null},
+                    xps: {id1: null},
+                },
+                price: {
+                    '10': {id2: null, id1: null}
+                },
+                tags: {
+                    a: {id2: null},
+                    b: {id2: null}
+                },
+                offers: {
+                    jan: {
+                        '10': {id2: null}
+                    },
+                    feb: {
+                        '20': {id2: null}
+                    }
+                },
+                meta: {
+                    a: {
+                        b: {
+                            '2': {id2: null}
+                        }
+                    },
+                    b: {
+                        '3': {id2: null}
+                    }
+                }
+            });
+        });
+        it('should write a tree to external file', async function () {
+            // const paths = new Set();
+            const tree = await treeController.objectToTree(stocks,'sales', async function({name, path, node}){
+                // console.log(path);
+                // paths.add(path);
+            });
+            writeFileSync(__dirname+'/../mocks/tree.json', JSON.stringify(tree));
+            // expect(Array.from(paths).length).equal(44);
+        });
     });
 
 });
