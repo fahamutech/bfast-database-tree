@@ -2,7 +2,7 @@
   "name": "bfast-database-tree",
   "version": "1.0.0-aplha.0",
   "description": "",
-  "main": "src/controllers/tree.controller.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "mocha --exit specs/src/*",
     "start": "node src/controllers/tree.controller.js"

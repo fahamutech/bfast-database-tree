@@ -43,9 +43,6 @@ TreeController.prototype.node = async function (
     if (typeof nodePath === 'boolean' || !nodePath) {
         nodePath = nodeKey;
     }
-    // if (!tree._id || typeof tree._id ==="boolean"){
-    //     tree._id = {};
-    // }
     if (!opts || typeof opts === "boolean") {
         opts = {};
     }
