@@ -47,5 +47,19 @@ module.exports.errors = {
         toString: () => {
             `code: ${this.code}, message: ${this.message}`
         }
+    },
+    QUERY_NOT_FOUND: {
+        code: 8,
+        message: 'query data supplied are not known',
+        toString: () => {
+            `code: ${this.code}, message: ${this.message}`
+        }
+    },
+    INNER_QUERY_DATA_INVALID: {
+        code: 9,
+        message: 'inner query data must be object or primitive or function only',
+        toString: () => {
+            `code: ${this.code}, message: ${this.message}`
+        }
     }
 }

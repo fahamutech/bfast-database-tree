@@ -103,7 +103,7 @@ TreeController.prototype.objectToTree = async function (
         throw errors.DOMAIN_NOT_FOUND;
     }
 
-    const processTree = async (d)=>{
+    const processTree = async (d) => {
         if (typeof d === 'boolean' || !d) {
             throw errors.DATA_NOT_FOUND;
         }
@@ -127,6 +127,26 @@ TreeController.prototype.objectToTree = async function (
     }
     tree._id = idNode;
     return tree;
+}
+
+/**
+ *
+ * @param domain {string} table/collection/domain where we want to execute query
+ * @param query {object | Array<object>} query that we want to execute
+ * @returns {Promise<{[key: string]:string} | Array<{[key: string]:string}>>}
+ */
+TreeController.prototype.query = async function (domain, query) {
+    if (Array.isArray(query)) {
+        const orQuery = [];
+        for (const _query of query) {
+            orQuery.push(await handleQueryMap({}, _query, [domain]));
+        }
+        return orQuery;
+    }
+    if (query && typeof query === "object" && JSON.stringify(query).startsWith('{')) {
+        return handleQueryMap({}, query, [domain]);
+    }
+    throw errors.QUERY_NOT_FOUND;
 }
 
 /**
@@ -157,6 +177,32 @@ async function handleMap(
             `${nodePath}/${_key}`,
             opts
         );
+    }
+    return tree;
+}
+
+/**
+ *
+ * @param tree {object}
+ * @param data {object}
+ * @param pathParts {Array<string>}
+ * @returns {Promise<object>}
+ */
+async function handleQueryMap(
+    tree,
+    data,
+    pathParts,
+) {
+    for (const key of Object.keys(data)) {
+        pathParts.push(key);
+        if (typeof data[key] === "object" && !Array.isArray(data[key]) && JSON.stringify(data[key]).startsWith('{')) {
+            tree = await handleQueryMap(tree, data[key], pathParts);
+        } else if (Array.isArray(data[key])) {
+            throw errors.INNER_QUERY_DATA_INVALID;
+        } else {
+            tree[pathParts.join('/')] = data[key];
+        }
+        pathParts.splice(pathParts.length - 1, 1);
     }
     return tree;
 }
