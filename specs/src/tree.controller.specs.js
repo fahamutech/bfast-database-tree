@@ -1,6 +1,6 @@
 const {assert, should, expect} = require("chai");
-const {TreeController} = require('../../src/index');
-const {errors} = require('../../src/utils/errors.util');
+const {TreeController} = require('../../dist/index');
+const {errors} = require('../../dist/utils/errors.util');
 const stocks = require('../mocks/sales.json');
 const {writeFileSync} = require('fs');
 
