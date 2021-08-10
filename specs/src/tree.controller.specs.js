@@ -1,6 +1,6 @@
 const {assert, should, expect} = require("chai");
-const {TreeController} = require('../../src/index');
-const {errors} = require('../../src/utils/errors.util');
+const {TreeController} = require('../../dist/index');
+const {errors} = require('../../dist/utils/errors.util');
 const stocks = require('../mocks/sales.json');
 const {writeFileSync} = require('fs');
 
@@ -575,6 +575,103 @@ describe('TreeController', function () {
             const tree = await treeController.objectToTree(stocks, 'sales');
             writeFileSync(__dirname + '/../mocks/tree.json', JSON.stringify(tree));
             expect(Array.from(stocks).length).equal(Object.keys(tree._id).length);
+        });
+    });
+
+    describe('query', function () {
+        const domain = 'test';
+        it('should tree of path to id for query on the nodes when apply a simple object', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: 'xps',
+            });
+            expect(queryResponse).eql({'test/name': 'xps'});
+        });
+        it('should tree of path to id for query on the nodes when apply a complex object', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: 'xps',
+                price: 10,
+                tags: {
+                    a: 'tz',
+                    b: 'used',
+                    c: {
+                        age: 20
+                    }
+                }
+            });
+            expect(queryResponse).eql({
+                'test/name': 'xps',
+                'test/price': 10,
+                'test/tags/a': 'tz',
+                'test/tags/b': 'used',
+                'test/tags/c/age': 20,
+            });
+        });
+        it('should throw error if a map contain array any ware inside', async function () {
+            try {
+                const queryResponse = await treeController.query(domain, {
+                    name: 'xps',
+                    price: [10, 20, 30]
+                });
+                expect(queryResponse).eql(undefined);
+            } catch (e) {
+                expect(e).eql(errors.INNER_QUERY_DATA_INVALID);
+            }
+        });
+        it('should return array of tree when provide array of objects for $or operation', async function () {
+            const queryResponse = await treeController.query(domain, [
+                {name: 'xps'},
+                {
+                    name: 'hp',
+                    price: 10,
+                    tags: {
+                        a: 'tz',
+                        b: 'used',
+                        c: {
+                            age: 20
+                        }
+                    }
+                }
+            ]);
+            expect(queryResponse).eql([
+                {'test/name': 'xps'},
+                {
+                    'test/name': 'hp',
+                    'test/price': 10,
+                    'test/tags/a': 'tz',
+                    'test/tags/b': 'used',
+                    'test/tags/c/age': 20,
+                },
+            ]);
+        });
+        it('should throw error if query data is invalid', async function () {
+            for (const value of [1, '3', function () {
+            }]) {
+                try {
+                    const queryResponse = await treeController.query(domain, value);
+                    expect(queryResponse).equal(undefined);
+                } catch (e) {
+                    expect(e).eql(errors.QUERY_NOT_FOUND);
+                }
+            }
+        });
+        it('should return tree when include function in query object', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: function ({$}) {
+                    return $ > 10;
+                },
+            });
+            expect(JSON.stringify(queryResponse)).equal(
+                JSON.stringify(
+                    {
+                        'test/name': function ({$}) {
+                            return $ > 10;
+                        }
+                    }
+                )
+            );
+            expect(JSON.stringify(queryResponse['test/name'])).equal(JSON.stringify(function ({$}) {
+                return $ > 10;
+            }));
         });
     });
 

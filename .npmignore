@@ -1,3 +1,5 @@
 /specs
 node_modules
 .github
+/src
+ts.config.json
