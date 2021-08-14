@@ -177,6 +177,7 @@ async function handleMap(
             `${nodePath}/${_key}`,
             opts
         );
+        delete data[nodeKey]._id;
     }
     return tree;
 }

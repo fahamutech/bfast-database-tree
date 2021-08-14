@@ -512,6 +512,22 @@ describe('TreeController', function () {
                 }
             });
         });
+        it('should not mutate object after tree traverse', async function () {
+            await treeController.objectToTree(data, domain);
+            expect(data).eql({
+                _id: 'id2',
+                name: 'hp',
+                price: 10,
+                tags: ['a', 'b'],
+                offers: [{jan: 10}, {feb: 20}],
+                meta: {
+                    a: {
+                        b: 2
+                    },
+                    b: 3
+                }
+            })
+        });
         it('should return _id field in tree', async function () {
             const tree = await treeController.objectToTree(data, domain);
             assert(tree !== undefined);
@@ -525,9 +541,6 @@ describe('TreeController', function () {
             let nodeCall = 0;
             const tree = await treeController.objectToTree(datas, domain, {
                 nodeHandler: async function ({name, path, node}) {
-                    // console.log(name,' node name  *********');
-                    // console.log(path, '  table *****');
-                    // console.log(node,'  data **********\n');
                     nodeCall += 1;
                 }
             });
