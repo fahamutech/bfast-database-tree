@@ -667,24 +667,37 @@ describe('TreeController', function () {
                 }
             }
         });
-        it('should return tree when include function in query object', async function () {
+        it('should return tree when include $fn object in query object', async function () {
             const queryResponse = await treeController.query(domain, {
-                name: function ({$}) {
-                    return $ > 10;
+                name: {
+                    $fn: `return it > 10;`
                 },
             });
-            expect(JSON.stringify(queryResponse)).equal(
-                JSON.stringify(
-                    {
-                        'test/name': function ({$}) {
-                            return $ > 10;
-                        }
-                    }
-                )
-            );
-            expect(JSON.stringify(queryResponse['test/name'])).equal(JSON.stringify(function ({$}) {
-                return $ > 10;
-            }));
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: `return it > 10;`
+                }
+            });
+            expect(queryResponse['test/name']).eql({
+                $fn: `return it > 10;`
+            });
+        });
+
+        it('should return tree when include $fn object in query object with other field', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $fn: `return it > 10;`,
+                    nr: 23
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: `return it > 10;`
+                }
+            });
+            expect(queryResponse['test/name']).eql({
+                $fn: `return it > 10;`
+            });
         });
     });
 

@@ -196,8 +196,18 @@ async function handleQueryMap(
 ) {
     for (const key of Object.keys(data)) {
         pathParts.push(key);
-        if (typeof data[key] === "object" && !Array.isArray(data[key]) && JSON.stringify(data[key]).startsWith('{')) {
-            tree = await handleQueryMap(tree, data[key], pathParts);
+        if (
+            typeof data[key] === "object" &&
+            !Array.isArray(data[key]) &&
+            JSON.stringify(data[key]).startsWith('{')
+        ) {
+            if (data[key].$fn && typeof data[key].$fn === "string") {
+                tree[pathParts.join('/')] ={
+                    $fn: data[key].$fn
+                };
+            } else {
+                tree = await handleQueryMap(tree, data[key], pathParts);
+            }
         } else if (Array.isArray(data[key])) {
             throw errors.INNER_QUERY_DATA_INVALID;
         } else {
