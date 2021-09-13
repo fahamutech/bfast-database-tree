@@ -108,7 +108,11 @@ TreeController.prototype.objectToTree = async function (
             throw errors.DATA_NOT_FOUND;
         }
         for (const nodeKey of Object.keys(d)) {
-            tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, opts);
+            if (nodeKey && typeof nodeKey !== "boolean") {
+                tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, opts);
+            } else {
+                console.log('skip node key is malformed---->', nodeKey);
+            }
         }
         idNode[d._id] = await opts.nodeIdHandler();
         await opts.nodeHandler({
@@ -169,14 +173,18 @@ async function handleMap(
     opts
 ) {
     for (const _key of Object.keys(data[nodeKey])) {
-        data[nodeKey]._id = data._id;
-        tree[nodeKey] = await TreeController.prototype.node(
-            tree[nodeKey],
-            data[nodeKey],
-            _key,
-            `${nodePath}/${_key}`,
-            opts
-        );
+        if (_key && typeof _key !== "boolean") {
+            data[nodeKey]._id = data._id;
+            tree[nodeKey] = await TreeController.prototype.node(
+                tree[nodeKey],
+                data[nodeKey],
+                _key,
+                `${nodePath}/${_key}`,
+                opts
+            );
+        } else {
+            console.log('skip key node is malformed---->', _key?.toString());
+        }
         delete data[nodeKey]._id;
     }
     return tree;
@@ -202,7 +210,7 @@ async function handleQueryMap(
             JSON.stringify(data[key]).startsWith('{')
         ) {
             if (data[key].$fn && typeof data[key].$fn === "string") {
-                tree[pathParts.join('/')] ={
+                tree[pathParts.join('/')] = {
                     $fn: data[key].$fn
                 };
             } else {
@@ -244,13 +252,17 @@ async function handleArray(
             tree = await handleArray(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, opts);
         } else {
             const _data = {[arrayItem]: arrayItem, _id: data._id, _list: true};
-            tree[nodeKey] = await TreeController.prototype.node(
-                tree[nodeKey],
-                _data,
-                arrayItem,
-                `${nodePath}`,
-                opts
-            );
+            if (arrayItem && typeof arrayItem !== "boolean") {
+                tree[nodeKey] = await TreeController.prototype.node(
+                    tree[nodeKey],
+                    _data,
+                    arrayItem,
+                    `${nodePath}`,
+                    opts
+                );
+            } else {
+                console.log('skip node key in array item is malformed--->', arrayItem)
+            }
         }
     }
     return tree;
@@ -305,6 +317,7 @@ async function processANode(
                 path: nodePath
             });
         } catch (e) {
+            console.log(e);
             throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
@@ -318,6 +331,7 @@ async function processANode(
                 path: nodePath
             });
         } catch (e) {
+            console.log(e);
             throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
