@@ -213,6 +213,21 @@ async function handleQueryMap(
                 tree[pathParts.join('/')] = {
                     $fn: data[key].$fn
                 };
+                if (data[key].hasOwnProperty('$orderBy')) {
+                    tree[pathParts.join('/')] = Object.assign(tree[pathParts.join('/')], {
+                        $orderBy: data[key].$orderBy
+                    });
+                }
+                if (data[key].hasOwnProperty('$limit')) {
+                    tree[pathParts.join('/')] = Object.assign(tree[pathParts.join('/')], {
+                        $limit: data[key].$limit
+                    });
+                }
+                if (data[key].hasOwnProperty('$skip')) {
+                    tree[pathParts.join('/')] = Object.assign(tree[pathParts.join('/')], {
+                        $skip: data[key].$skip
+                    });
+                }
             } else {
                 tree = await handleQueryMap(tree, data[key], pathParts);
             }
@@ -317,7 +332,7 @@ async function processANode(
                 path: nodePath
             });
         } catch (e) {
-            console.log(e);
+            // console.log(e.toString());
             throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }

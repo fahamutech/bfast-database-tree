@@ -593,7 +593,7 @@ describe('TreeController', function () {
 
     describe('query', function () {
         const domain = 'test';
-        it('should tree of path to id for query on the nodes when apply a simple object', async function () {
+        it('should return tree of path to id for query on the nodes when apply a simple object', async function () {
             const queryResponse = await treeController.query(domain, {
                 name: 'xps',
             });
@@ -619,7 +619,7 @@ describe('TreeController', function () {
                 'test/tags/c/age': 20,
             });
         });
-        it('should throw error if a map contain array any ware inside', async function () {
+        it('should throw error if a map contain array any were inside', async function () {
             try {
                 const queryResponse = await treeController.query(domain, {
                     name: 'xps',
@@ -675,15 +675,11 @@ describe('TreeController', function () {
             });
             expect(queryResponse).eql({
                 'test/name': {
-                    $fn: `return it > 10;`
+                    $fn: 'return it > 10;'
                 }
             });
-            expect(queryResponse['test/name']).eql({
-                $fn: `return it > 10;`
-            });
         });
-
-        it('should return tree when include $fn object in query object with other field', async function () {
+        it('should prefer $fn when including $fn object in query object with other field', async function () {
             const queryResponse = await treeController.query(domain, {
                 name: {
                     $fn: `return it > 10;`,
@@ -697,6 +693,84 @@ describe('TreeController', function () {
             });
             expect(queryResponse['test/name']).eql({
                 $fn: `return it > 10;`
+            });
+        });
+        it('should return orderBy direction when specified in expression query', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $fn: 'return true',
+                    $orderBy: 'asc'
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: 'return true',
+                    $orderBy: 'asc'
+                }
+            });
+        });
+        it('should return orderBy direction and limit when specified in expression query', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $limit: 20
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $limit: 20
+                }
+            });
+        });
+        it('should return orderBy direction and skip when specified in expression query', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $skip: 10
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $skip: 10
+                }
+            });
+        });
+        it('should return orderBy direction, limit and skip when specified in expression query', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $skip: 10,
+                    $limit: 100
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name': {
+                    $fn: 'return true',
+                    $orderBy: 'asc',
+                    $skip: 10,
+                    $limit: 100
+                }
+            });
+        });
+        it('should not return orderBy, limit and skip when $fn not exist in a query', async function () {
+            const queryResponse = await treeController.query(domain, {
+                name: {
+                    $orderBy: 'asc',
+                    $skip: 10,
+                    $limit: 100
+                },
+            });
+            expect(queryResponse).eql({
+                'test/name/$orderBy': 'asc',
+                'test/name/$skip': 10,
+                'test/name/$limit': 100,
             });
         });
     });
