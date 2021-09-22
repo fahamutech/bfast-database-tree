@@ -332,7 +332,7 @@ async function processANode(
                 path: nodePath
             });
         } catch (e) {
-            // console.log(e.toString());
+            console.log(e);
             throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
