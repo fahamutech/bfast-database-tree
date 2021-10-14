@@ -315,14 +315,14 @@ async function processANode(
     }
     if (!tree[nodeKey].hasOwnProperty(data[nodeKey])) {
         if (
-            data[nodeKey]
+            data.hasOwnProperty(nodeKey)
             && data[nodeKey] !== data._id
             && !data.hasOwnProperty('_list')
         ) {
             tree[nodeKey][data[nodeKey]] = {};
         }
     }
-    if (data[nodeKey] && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
+    if (data.hasOwnProperty(nodeKey) && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
         tree[nodeKey][data[nodeKey]][data._id] = await opts.nodeIdHandler();
         // tree._id[data._id] = await opts.nodeIdHandler();
         try {
@@ -336,7 +336,7 @@ async function processANode(
             throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
-    if (data[nodeKey] && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
+    if (data.hasOwnProperty(nodeKey) && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
         tree[nodeKey][data._id] = await opts.nodeIdHandler();
         // tree._id[data._id] = await opts.nodeIdHandler();
         try {
