@@ -2,5 +2,5 @@
 .idea
 .vscode
 node_modules
-specs/mocks/tree.json
+mocks/tree.json
 /dist

@@ -1,7 +1,15 @@
-const {errors} = require('../utils/errors.util');
+import {
+    DATA_NOT_FOUND,
+    DOMAIN_NOT_FOUND,
+    ID_NOT_FOUND,
+    INNER_QUERY_DATA_INVALID,
+    NODE_HANDLER_ERROR,
+    NODE_KEY_NOT_FOUND,
+    QUERY_NOT_FOUND,
+    TREE_NOT_FOUND
+} from "../utils/errors.mjs";
+import {ifThrow} from "../utils/index.mjs";
 
-function TreeController() {
-}
 
 /**
  * extract node(s) from object
@@ -15,31 +23,20 @@ function TreeController() {
  * }
  * @returns {Promise<object>} - tree after append a node
  */
-TreeController.prototype.node = async function (
+export async function extractNode(
     tree,
     data,
     nodeKey,
     nodePath = null,
     opts = {
-        nodeHandler: async ({name, path, node}) => {
-        },
-        nodeIdHandler: async () => {
-            return null;
-        }
+        nodeHandler: async () => {
+        }, nodeIdHandler: async () => null
     }
 ) {
-    if (typeof tree === 'boolean' || !tree) {
-        throw errors.TREE_NOT_FOUND;
-    }
-    if (typeof data === 'boolean' || !data) {
-        throw errors.DATA_NOT_FOUND;
-    }
-    if (typeof nodeKey === 'boolean' || !nodeKey) {
-        throw errors.NODE_KEY_NOT_FOUND;
-    }
-    if (data.hasOwnProperty('_id') === false) {
-        throw errors.ID_NOT_FOUND;
-    }
+    ifThrow(typeof nodeKey === 'boolean' || !nodeKey, NODE_KEY_NOT_FOUND);
+    ifThrow(typeof data === 'boolean' || !data, DATA_NOT_FOUND);
+    ifThrow(data.hasOwnProperty('_id') === false, ID_NOT_FOUND);
+    ifThrow(typeof tree === 'boolean' || !tree, TREE_NOT_FOUND);
     if (typeof nodePath === 'boolean' || !nodePath) {
         nodePath = nodeKey;
     }
@@ -47,26 +44,26 @@ TreeController.prototype.node = async function (
         opts = {};
     }
     if (typeof opts.nodeHandler === 'boolean' || !opts.nodeHandler) {
-        opts.nodeHandler = async function ({node, name, tree, path}) {
-        }
+        // {node, name, tree, path}
+        opts.nodeHandler = async () => {}
     }
     if (!tree.hasOwnProperty(nodeKey)) {
         tree[nodeKey] = {};
     }
     if (
         data.hasOwnProperty(nodeKey) &&
-        typeof data[nodeKey] === "object" &&
-        !Array.isArray(data[nodeKey]) &&
-        JSON.stringify(data[nodeKey]).startsWith('{') &&
-        data[nodeKey] !== null &&
-        data[nodeKey] !== undefined
+        // typeof data[nodeKey] === "object" &&
+        // !Array.isArray(data[nodeKey]) &&
+        JSON.stringify(data[nodeKey]).startsWith('{') //&&
+        // data[nodeKey] !== null &&
+        // data[nodeKey] !== undefined
     ) {
         tree = await handleMap(tree, data, nodeKey, nodePath, opts);
     } else if (
         data.hasOwnProperty(nodeKey) &&
-        Array.isArray(data[nodeKey]) &&
-        data[nodeKey] !== null &&
-        data[nodeKey] !== undefined
+        Array.isArray(data[nodeKey]) //&&
+        // data[nodeKey] !== null &&
+        // data[nodeKey] !== undefined
     ) {
         tree = await handleArray(tree, data, nodeKey, nodePath, opts);
     } else {
@@ -86,39 +83,34 @@ TreeController.prototype.node = async function (
  * }
  * @returns {Promise<object>} - resolve to tree of nodes for that data
  */
-TreeController.prototype.objectToTree = async function (
+export async function objectToTree(
     data,
     domain,
     opts = {
-        nodeHandler: async ({name, path, node}) => {
-        },
-        nodeIdHandler: async () => {
-            return null;
-        }
+        nodeHandler: async () => {
+        }, nodeIdHandler: async () => null
     }
 ) {
     let tree = {};
     const idNode = {};
     if (typeof domain === 'boolean' || !domain || domain === '') {
-        throw errors.DOMAIN_NOT_FOUND;
+        throw DOMAIN_NOT_FOUND;
     }
 
     const processTree = async (d) => {
         if (typeof d === 'boolean' || !d) {
-            throw errors.DATA_NOT_FOUND;
+            throw DATA_NOT_FOUND;
         }
         for (const nodeKey of Object.keys(d)) {
             if (nodeKey && typeof nodeKey !== "boolean") {
-                tree = await this.node(tree, d, nodeKey, `${domain}/${nodeKey}`, opts);
+                tree = await extractNode(tree, d, nodeKey, `${domain}/${nodeKey}`, opts);
             } else {
                 console.log('skip node key is malformed---->', nodeKey);
             }
         }
         idNode[d._id] = await opts.nodeIdHandler();
         await opts.nodeHandler({
-            name: '_id',
-            node: idNode,
-            path: `${domain}/_id`
+            name: '_id', node: idNode, path: `${domain}/_id`
         });
     }
 
@@ -139,7 +131,7 @@ TreeController.prototype.objectToTree = async function (
  * @param query {object | Array<object>} query that we want to execute
  * @returns {Promise<{[key: string]:string} | Array<{[key: string]:string}>>}
  */
-TreeController.prototype.query = async function (domain, query) {
+export async function query(domain, query) {
     if (Array.isArray(query)) {
         const orQuery = [];
         for (const _query of query) {
@@ -150,7 +142,7 @@ TreeController.prototype.query = async function (domain, query) {
     if (query && typeof query === "object" && JSON.stringify(query).startsWith('{')) {
         return handleQueryMap({}, query, [domain]);
     }
-    throw errors.QUERY_NOT_FOUND;
+    throw QUERY_NOT_FOUND;
 }
 
 /**
@@ -165,23 +157,11 @@ TreeController.prototype.query = async function (domain, query) {
  * }
  * @returns {Promise<object>}
  */
-async function handleMap(
-    tree,
-    data,
-    nodeKey,
-    nodePath,
-    opts
-) {
+async function handleMap(tree, data, nodeKey, nodePath, opts) {
     for (const _key of Object.keys(data[nodeKey])) {
         if (_key && typeof _key !== "boolean") {
             data[nodeKey]._id = data._id;
-            tree[nodeKey] = await TreeController.prototype.node(
-                tree[nodeKey],
-                data[nodeKey],
-                _key,
-                `${nodePath}/${_key}`,
-                opts
-            );
+            tree[nodeKey] = await extractNode(tree[nodeKey], data[nodeKey], _key, `${nodePath}/${_key}`, opts);
         } else {
             console.log('skip key node is malformed---->', _key?.toString());
         }
@@ -197,18 +177,10 @@ async function handleMap(
  * @param pathParts {Array<string>}
  * @returns {Promise<object>}
  */
-async function handleQueryMap(
-    tree,
-    data,
-    pathParts,
-) {
+async function handleQueryMap(tree, data, pathParts,) {
     for (const key of Object.keys(data)) {
         pathParts.push(key);
-        if (
-            typeof data[key] === "object" &&
-            !Array.isArray(data[key]) &&
-            JSON.stringify(data[key]).startsWith('{')
-        ) {
+        if (typeof data[key] === "object" && !Array.isArray(data[key]) && JSON.stringify(data[key]).startsWith('{')) {
             if (data[key].$fn && typeof data[key].$fn === "string") {
                 tree[pathParts.join('/')] = {
                     $fn: data[key].$fn
@@ -232,7 +204,7 @@ async function handleQueryMap(
                 tree = await handleQueryMap(tree, data[key], pathParts);
             }
         } else if (Array.isArray(data[key])) {
-            throw errors.INNER_QUERY_DATA_INVALID;
+            throw INNER_QUERY_DATA_INVALID;
         } else {
             tree[pathParts.join('/')] = data[key];
         }
@@ -253,13 +225,7 @@ async function handleQueryMap(
  * }
  * @returns {Promise<object>}
  */
-async function handleArray(
-    tree,
-    data,
-    nodeKey,
-    nodePath,
-    opts
-) {
+async function handleArray(tree, data, nodeKey, nodePath, opts) {
     for (const arrayItem of data[nodeKey]) {
         if (typeof arrayItem === 'object' && !Array.isArray(arrayItem)) {
             tree = await handleMap(tree, {[nodeKey]: arrayItem, _id: data._id}, nodeKey, nodePath, opts);
@@ -268,13 +234,7 @@ async function handleArray(
         } else {
             const _data = {[arrayItem]: arrayItem, _id: data._id, _list: true};
             if (arrayItem && typeof arrayItem !== "boolean") {
-                tree[nodeKey] = await TreeController.prototype.node(
-                    tree[nodeKey],
-                    _data,
-                    arrayItem,
-                    `${nodePath}`,
-                    opts
-                );
+                tree[nodeKey] = await extractNode(tree[nodeKey], _data, arrayItem, `${nodePath}`, opts);
             } else {
                 console.log('skip node key in array item is malformed--->', arrayItem)
             }
@@ -295,13 +255,7 @@ async function handleArray(
  * }
  * @returns {Promise<object>}
  */
-async function processANode(
-    tree,
-    data,
-    nodeKey,
-    nodePath,
-    opts
-) {
+async function processANode(tree, data, nodeKey, nodePath, opts) {
     if (!opts || typeof opts === "boolean") {
         opts = {};
     }
@@ -314,11 +268,7 @@ async function processANode(
         tree[nodeKey] = {};
     }
     if (!tree[nodeKey].hasOwnProperty(data[nodeKey])) {
-        if (
-            data.hasOwnProperty(nodeKey)
-            && data[nodeKey] !== data._id
-            && !data.hasOwnProperty('_list')
-        ) {
+        if (data.hasOwnProperty(nodeKey) && data[nodeKey] !== data._id && !data.hasOwnProperty('_list')) {
             tree[nodeKey][data[nodeKey]] = {};
         }
     }
@@ -327,13 +277,11 @@ async function processANode(
         // tree._id[data._id] = await opts.nodeIdHandler();
         try {
             await opts.nodeHandler({
-                name: nodeKey,
-                node: tree[nodeKey],
-                path: nodePath
+                name: nodeKey, node: tree[nodeKey], path: nodePath
             });
         } catch (e) {
             console.log(e);
-            throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
+            throw {...NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
     if (data.hasOwnProperty(nodeKey) && data[nodeKey] !== data._id && data.hasOwnProperty('_list')) {
@@ -341,18 +289,12 @@ async function processANode(
         // tree._id[data._id] = await opts.nodeIdHandler();
         try {
             await opts.nodeHandler({
-                name: nodeKey,
-                node: {[nodeKey]: tree[nodeKey]},
-                path: nodePath
+                name: nodeKey, node: {[nodeKey]: tree[nodeKey]}, path: nodePath
             });
         } catch (e) {
             console.log(e);
-            throw {...errors.NODE_HANDLER_ERROR, reason: e.toString()};
+            throw {...NODE_HANDLER_ERROR, reason: e.toString()};
         }
     }
     return tree;
-}
-
-module.exports = {
-    TreeController,
 }

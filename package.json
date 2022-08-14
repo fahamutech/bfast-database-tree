@@ -1,20 +1,20 @@
 {
-  "name": "bfast-database-tree",
-  "version": "1.1.4",
+  "name": "bfast-data-tree",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "npx tsc --project ts.config.json",
-    "test": "npm run build && mocha --exit specs/src/*",
+    "test": "npx mocha --exit --bail src/*",
     "start": "node src/controllers/tree.controller.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "chai": "^4.3.4",
-    "mocha": "^9.0.2",
-    "typescript": "^4.3.5"
+    "chai": "^4.3.6",
+    "mocha": "^10.0.0",
+    "typescript": "^4.7.4"
   }
 }
